@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NexiaStore - Advanced Admin Panel</title>
+    <link rel="icon" type="image/png" href="NexiaStore.png">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="admin.css">
+</head>
+<body>
+    <!-- PIN Security Authentication Overlay Modal -->
+    <div id="authModal" class="auth-overlay">
+        <div class="auth-card">
+            <i class="fa-solid fa-shield-halved lock-icon"></i>
+            <h3>ADMIN ACCESS</h3>
+            <p>Enter 4-digit PIN to access panel</p>
+            <input type="password" id="pinInput" class="pin-input" maxlength="4" placeholder="••••" autofocus>
+            <button id="unlockBtn" class="auth-btn"><i class="fa-solid fa-key"></i> UNLOCK PANEL</button>
+            <div id="authError" class="auth-error"><i class="fa-solid fa-circle-exclamation"></i> Incorrect PIN! Try again.</div>
+        </div>
+    </div>
+
+    <header>
+        <div class="brand">
+            <img src="NexiaStore.png" alt="NexiaStore" class="brand-logo" onerror="this.style.display='none'">
+            <h1 class="brand-title">NEXIA<span>ADMIN</span></h1>
+        </div>
+        <a href="index.html" class="admin-link-btn"><i class="fa-solid fa-store"></i> Back to Store</a>
+    </header>
+
+    <main class="container admin-container" id="adminContent" style="display: none;">
+        <div class="admin-card">
+            <h2><i class="fa-solid fa-cloud-arrow-up"></i> Upload & Publish New App</h2>
+            <form id="appForm">
+                <div class="form-grid">
+                    <div class="input-group">
+                        <label>App Name</label>
+                        <input type="text" id="appName" placeholder="e.g. TicTacToe Pro" required>
+                    </div>
+
+                    <div class="input-group">
+                        <label>Category</label>
+                        <input type="text" id="appCategory" placeholder="e.g. Action / Utility" required>
+                    </div>
+
+                    <div class="input-group">
+                        <label>Version</label>
+                        <input type="text" id="appVersion" placeholder="e.g. 1.0.4" required>
+                    </div>
+
+                    <div class="input-group">
+                        <label>File Size (Optional - Auto calculated if empty)</label>
+                        <input type="text" id="appSize" placeholder="e.g. 15.4 MB">
+                    </div>
+
+                    <!-- Cloudinary Image Upload Input -->
+                    <div class="input-group full-width">
+                        <label><i class="fa-solid fa-image"></i> Select App Logo (Auto Uploads to Cloudinary)</label>
+                        <input type="file" id="logoFile" accept="image/*" required>
+                    </div>
+
+                    <!-- Cloudinary APK File Upload Input -->
+                    <div class="input-group full-width">
+                        <label><i class="fa-solid fa-file-zipper"></i> Select APK File (Auto Uploads to Cloudinary Direct CDN)</label>
+                        <input type="file" id="apkFile" accept=".apk" required>
+                    </div>
+
+                    <div class="input-group full-width">
+                        <label>App Description & Features</label>
+                        <textarea id="appDesc" rows="4" placeholder="Detailed description of your application..." required></textarea>
+                    </div>
+                </div>
+
+                <!-- Status Indicator -->
+                <div id="uploadStatus" class="upload-status"></div>
+
+                <button type="submit" id="submitBtn" class="submit-btn">
+                    <i class="fa-solid fa-fire"></i> Auto Upload & Publish
+                </button>
+            </form>
+        </div>
+
+        <div class="admin-card" style="margin-top: 2rem;">
+            <h2><i class="fa-solid fa-list-check"></i> Published Apps List</h2>
+            <div id="adminAppList" class="admin-app-list">
+                <!-- Dynamic Firestore Items -->
+            </div>
+        </div>
+    </main>
+
+    <!-- Firebase SDK (Modular v9/v10) -->
+    <script type="module" src="admin.js"></script>
+</body>
+</html>
