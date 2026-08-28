@@ -11,7 +11,7 @@ async function fetchApps() {
         const querySnapshot = await getDocs(q);
 
         if (querySnapshot.empty) {
-            mainAppGrid.innerHTML = '<p style="text-align: center; grid-column: 1/-1;">কোনো অ্যাপ পাওয়া যায়নি!</p>';
+            mainAppGrid.innerHTML = '<p style="text-align: center; grid-column: 1/-1;">কোনো অ্যাপ পাওয়া যায়নি!</p>';
             return;
         }
 
@@ -23,7 +23,7 @@ async function fetchApps() {
         renderApps(allAppsData);
     } catch (error) {
         console.error("Fetch Error:", error);
-        mainAppGrid.innerHTML = '<p style="text-align: center; color: red; grid-column: 1/-1;">অ্যাপ লোড করতে সমস্যা হয়েছে!</p>';
+        mainAppGrid.innerHTML = '<p style="text-align: center; color: red; grid-column: 1/-1;">অ্যাপ লোড করতে সমস্যা হয়েছে!</p>';
     }
 }
 
@@ -31,7 +31,9 @@ function renderApps(apps) {
     mainAppGrid.innerHTML = '';
     apps.forEach(app => {
         const card = document.createElement('a');
-        card.href = `product.html?id=${app.id}`;
+        
+        // './' সহ পাথ নির্ধারণ করা হয়েছে যাতে Render রিডাইরেক্টে ?id= নষ্ট না হয়
+        card.href = `./product.html?id=${app.id}`;
         card.className = 'app-card';
 
         card.innerHTML = `
