@@ -5,6 +5,14 @@ const urlParams = new URLSearchParams(window.location.search);
 const appId = urlParams.get('id');
 const productWrapper = document.getElementById('productWrapper');
 
+// Text safe escape helper (XSS প্রতিরোধে)
+function escapeHTML(str) {
+    if (!str) return '';
+    return str.replace(/[&<>'"]/g, 
+        tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+    );
+}
+
 async function loadSingleProduct() {
     if (!appId) {
         productWrapper.innerHTML = '<h2 style="text-align:center;">কোনো অ্যাপ নির্বাচন করা হয়নি!</h2>';
@@ -15,106 +23,131 @@ async function loadSingleProduct() {
         const docRef = doc(db, "apps", appId);
         const docSnap = await getDoc(docRef);
 
-        if (docSnap.exists()) {
-            const app = docSnap.data();
-            document.title = `${app.name} - NexiaStore`;
+        if (!docSnap.exists()) {
+            productWrapper.innerHTML = '<h2 style="text-align:center;">অ্যাপটি পাওয়া যায়নি!</h2>';
+            return;
+        }
 
-            productWrapper.innerHTML = `
-                <div class="product-detail-card">
-                    <div class="product-header-flex">
-                        <img src="${app.logo}" class="product-big-icon" alt="${app.name}">
-                        <div class="product-meta">
-                            <h1>${app.name}</h1>
-                            <div class="meta-badges">
-                                <span><i class="fa-solid fa-tag"></i> ${app.category || 'App'}</span>
-                                <span><i class="fa-solid fa-code-branch"></i> v${app.version || '1.0'}</span>
-                                <span><i class="fa-solid fa-hard-drive"></i> ${app.size || 'APK'}</span>
-                            </div>
+        const app = docSnap.data();
+        const appName = escapeHTML(app.name || 'App');
+        const appCategory = escapeHTML(app.category || 'App');
+        const appVersion = escapeHTML(app.version || '1.0');
+        const appSize = escapeHTML(app.size || 'APK');
+        const appDesc = escapeHTML(app.desc || 'No description provided.').replace(/\n/g, '<br>');
+
+        document.title = `${appName} - NexiaStore`;
+
+        productWrapper.innerHTML = `
+            <div class="product-detail-card">
+                <div class="product-header-flex">
+                    <img src="${app.logo || 'placeholder.png'}" class="product-big-icon" alt="${appName}">
+                    <div class="product-meta">
+                        <h1>${appName}</h1>
+                        <div class="meta-badges">
+                            <span><i class="fa-solid fa-tag"></i> ${appCategory}</span>
+                            <span><i class="fa-solid fa-code-branch"></i> v${appVersion}</span>
+                            <span><i class="fa-solid fa-hard-drive"></i> ${appSize}</span>
                         </div>
                     </div>
-
-                    <div class="product-desc">
-                        <h3 style="color:var(--neon-cyan); margin-bottom:8px;"><i class="fa-solid fa-circle-info"></i> About this App</h3>
-                        <p>${app.desc ? app.desc.replace(/\n/g, '<br>') : 'No description provided.'}</p>
-                    </div>
-
-                    <button id="downloadBtn" class="download-action-btn">
-                        <i class="fa-solid fa-circle-down"></i> Download APK Now (${app.size || ''})
-                    </button>
-                    <p id="downloadProgress" style="text-align:center; color:var(--neon-cyan); margin-top:10px; display:none;"></p>
                 </div>
-            `;
 
-            // ১-ক্লিকে ১০০% ডাইরেক্ট ফোর্স ডাউনলোডার
-            const btn = document.getElementById('downloadBtn');
-            const progress = document.getElementById('downloadProgress');
+                <div class="product-desc">
+                    <h3 style="color:var(--neon-cyan); margin-bottom:8px;"><i class="fa-solid fa-circle-info"></i> About this App</h3>
+                    <p>${appDesc}</p>
+                </div>
 
-            btn.addEventListener('click', async () => {
-                btn.disabled = true;
-                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Starting Download...';
+                <button id="downloadBtn" class="download-action-btn">
+                    <i class="fa-solid fa-circle-down"></i> Download APK Now (${appSize})
+                </button>
+                <p id="downloadProgress" style="text-align:center; color:var(--neon-cyan); margin-top:10px; display:none;"></p>
+            </div>
+        `;
+
+        // ডাউনলোড হ্যান্ডলার
+        const btn = document.getElementById('downloadBtn');
+
+        btn.addEventListener('click', async () => {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Starting Download...';
+            
+            let directUrl = app.apkUrl;
+            if (!directUrl) {
+                alert('ডাউনলোড লিঙ্ক পাওয়া যায়নি!');
+                btn.disabled = false;
+                btn.innerHTML = `<i class="fa-solid fa-circle-down"></i> Download APK Now (${appSize})`;
+                return;
+            }
+
+            const cleanFileName = appName.trim().replace(/\s+/g, '_');
+            const finalFileName = cleanFileName.endsWith('.apk') ? cleanFileName : `${cleanFileName}.apk`;
+
+            // Gofile Link Transform (Direct Redirect)
+            if (directUrl.includes('gofile.io/d/')) {
+                window.open(directUrl, '_blank');
+                resetBtn(btn, appSize);
+                return;
+            }
+
+            // Dropbox Link Transform
+            if (directUrl.includes('dropbox.com')) {
+                if (directUrl.includes('dl=0')) {
+                    directUrl = directUrl.replace('dl=0', 'dl=1');
+                } else if (!directUrl.includes('dl=1')) {
+                    directUrl += (directUrl.includes('?') ? '&' : '?') + 'dl=1';
+                }
+            }
+
+            try {
+                // Fetch & Blob Download (Cloudinary/Direct Links-এর জন্য)
+                const response = await fetch(directUrl);
+                if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
                 
-                try {
-                    let directUrl = app.apkUrl;
-
-                    // Gofile Link Transform
-                    if (directUrl.includes('gofile.io/d/')) {
-                        window.location.href = directUrl;
-                        btn.disabled = false;
-                        btn.innerHTML = '<i class="fa-solid fa-circle-down"></i> Download APK Now';
-                        return;
-                    }
-
-                    // Dropbox Link Transform
-                    if (directUrl.includes('dropbox.com')) {
-                        directUrl = directUrl.replace('dl=0', 'dl=1');
-                    }
-
-                    // Blob দিয়ে Cloudinary ফাইল ডাউনলোড করে সঠিক .apk নামে সেভ করার লজিক
-                    const response = await fetch(directUrl);
-                    if (!response.ok) throw new Error('Network response was not ok');
-                    
-                    const blob = await response.blob();
-                    const blobUrl = window.URL.createObjectURL(blob);
-                    
-                    const a = document.createElement('a');
-                    a.style.display = 'none';
-                    a.href = blobUrl;
-                    
-                    // ফাইলনেম শেষে ঠিকমতো .apk এক্সটেনশন যোগ করা
-                    const cleanFileName = app.name.trim().replace(/\s+/g, '_');
-                    a.download = cleanFileName.endsWith('.apk') ? cleanFileName : `${cleanFileName}.apk`;
-                    
-                    document.body.appendChild(a);
-                    a.click();
-                    
+                const blob = await response.blob();
+                const blobUrl = window.URL.createObjectURL(blob);
+                
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = blobUrl;
+                a.download = finalFileName;
+                
+                document.body.appendChild(a);
+                a.click();
+                
+                // Release memory
+                setTimeout(() => {
                     window.URL.revokeObjectURL(blobUrl);
                     document.body.removeChild(a);
+                }, 100);
 
-                    btn.disabled = false;
-                    btn.innerHTML = '<i class="fa-solid fa-circle-check"></i> Downloaded!';
-                } catch (err) {
-                    console.log("Blob download fallback, opening direct link", err);
-                    
-                    // Fallback Direct Link
-                    const link = document.createElement('a');
-                    link.href = app.apkUrl;
-                    link.target = '_blank';
-                    const cleanFileName = app.name.trim().replace(/\s+/g, '_');
-                    link.setAttribute('download', cleanFileName.endsWith('.apk') ? cleanFileName : `${cleanFileName}.apk`);
-                    link.click();
+                btn.innerHTML = '<i class="fa-solid fa-circle-check"></i> Downloaded!';
+                setTimeout(() => resetBtn(btn, appSize), 3000);
 
-                    btn.disabled = false;
-                    btn.innerHTML = '<i class="fa-solid fa-circle-down"></i> Download APK Now';
-                }
-            });
+            } catch (err) {
+                console.warn("CORS/Blob download fallback, opening direct link:", err);
+                
+                // Fallback Direct Download Link
+                const link = document.createElement('a');
+                link.href = directUrl;
+                link.target = '_blank';
+                link.setAttribute('download', finalFileName);
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
 
-        } else {
-            productWrapper.innerHTML = '<h2 style="text-align:center;">অ্যাপটি পাওয়া যায়নি!</h2>';
-        }
+                resetBtn(btn, appSize);
+            }
+        });
+
     } catch (error) {
         console.error("Error loading product:", error);
         productWrapper.innerHTML = '<h2 style="text-align:center;">তথ্য লোড করতে সমস্যা হয়েছে!</h2>';
     }
+}
+
+// Button reset helper function
+function resetBtn(btn, appSize) {
+    btn.disabled = false;
+    btn.innerHTML = `<i class="fa-solid fa-circle-down"></i> Download APK Now (${appSize})`;
 }
 
 loadSingleProduct();
