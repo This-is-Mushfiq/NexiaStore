@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: nexiastore
+    env: static
+    staticPublishPath: ./
+    routes:
+      - type: rewrite
+        source: /product
+        destination: /product.html
