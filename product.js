@@ -14,6 +14,11 @@ function escapeHTML(str) {
 }
 
 async function loadSingleProduct() {
+    if (!productWrapper) {
+        console.error("HTML এ 'productWrapper' নামের কোনো Element পাওয়া যায়নি!");
+        return;
+    }
+
     if (!appId) {
         productWrapper.innerHTML = '<h2 style="text-align:center;">কোনো অ্যাপ নির্বাচন করা হয়নি!</h2>';
         return;
@@ -72,17 +77,16 @@ async function loadSingleProduct() {
             
             let directUrl = app.apkUrl;
             if (!directUrl) {
-                alert('ডাউনলোড লিঙ্ক পাওয়া যায়নি!');
-                btn.disabled = false;
-                btn.innerHTML = `<i class="fa-solid fa-circle-down"></i> Download APK Now (${appSize})`;
+                alert('ডাউনলোড লিঙ্ক পাওয়া যায়নি!');
+                resetBtn(btn, appSize);
                 return;
             }
 
             const cleanFileName = appName.trim().replace(/\s+/g, '_');
             const finalFileName = cleanFileName.endsWith('.apk') ? cleanFileName : `${cleanFileName}.apk`;
 
-            // Gofile Link Transform (Direct Redirect)
-            if (directUrl.includes('gofile.io/d/')) {
+            // Gofile Link (Direct Redirect)
+            if (directUrl.includes('gofile.io')) {
                 window.open(directUrl, '_blank');
                 resetBtn(btn, appSize);
                 return;
@@ -90,15 +94,14 @@ async function loadSingleProduct() {
 
             // Dropbox Link Transform
             if (directUrl.includes('dropbox.com')) {
-                if (directUrl.includes('dl=0')) {
-                    directUrl = directUrl.replace('dl=0', 'dl=1');
-                } else if (!directUrl.includes('dl=1')) {
+                directUrl = directUrl.replace('?dl=0', '?dl=1').replace('&dl=0', '&dl=1');
+                if (!directUrl.includes('dl=1')) {
                     directUrl += (directUrl.includes('?') ? '&' : '?') + 'dl=1';
                 }
             }
 
             try {
-                // Fetch & Blob Download (Cloudinary/Direct Links-এর জন্য)
+                // Fetch & Blob Download
                 const response = await fetch(directUrl);
                 if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
                 
@@ -113,7 +116,7 @@ async function loadSingleProduct() {
                 document.body.appendChild(a);
                 a.click();
                 
-                // Release memory
+                // Cleanup
                 setTimeout(() => {
                     window.URL.revokeObjectURL(blobUrl);
                     document.body.removeChild(a);
@@ -146,8 +149,15 @@ async function loadSingleProduct() {
 
 // Button reset helper function
 function resetBtn(btn, appSize) {
-    btn.disabled = false;
-    btn.innerHTML = `<i class="fa-solid fa-circle-down"></i> Download APK Now (${appSize})`;
+    if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = `<i class="fa-solid fa-circle-down"></i> Download APK Now (${appSize})`;
+    }
 }
 
-loadSingleProduct();
+// Ensure DOM is ready before executing
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', loadSingleProduct);
+} else {
+    loadSingleProduct();
+}
